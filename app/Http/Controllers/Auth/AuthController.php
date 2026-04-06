@@ -39,7 +39,7 @@ class AuthController extends Controller
             switch ($user->role){
                 case 'mahasiswa':
                     return redirect('/mahasiswa/dashboard');
-                case 'dosen':
+                case 'dosen_wali':
                     return redirect('/dosen/dashboard');
                 case 'kaprodi':
                     return redirect('/kaprodi/dashboard');

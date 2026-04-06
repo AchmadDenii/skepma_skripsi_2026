@@ -23,7 +23,13 @@
                 <li class="nav-item mb-2">
                     <a href="/admin/users" class="nav-link text-white">User</a>
                 </li>
-
+                <li class="nav-item mb-2">
+                    <a href="/admin/bukti" class="nav-link text-white">bukti</a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="/admin/import/master-poin" class="nav-link text-white">Import Master Poin</a>
+                </li>
+                
                 <li class="nav-item mt-4">
                     <form action="{{ route('logout') }}" method="POST">
                         @csrf

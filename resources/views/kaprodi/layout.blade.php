@@ -27,6 +27,18 @@
                     </a>
                 </li>
 
+                <li class="nav-item mb-2">
+                    <a href="/kaprodi/catatan" class="nav-link text-white">
+                        Catatan dosen
+                    </a>
+                </li>
+
+                <li class="nav-item mb-2">
+                    <a href="/kaprodi/mahasiswa" class="nav-link text-white">
+                        Daftar Mahasiswa
+                    </a>
+                </li>
+
                 <li class="nav-item mt-4">
                     <form action="{{ route('logout') }}" method="POST">
                         @csrf
@@ -35,6 +47,7 @@
                 </li>
             </ul>
         </nav>
+
 
         <!-- CONTENT -->
         <main class="col-md-9 col-lg-10 p-4">

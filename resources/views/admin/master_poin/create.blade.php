@@ -3,34 +3,57 @@
 @section('content')
 <h4>Tambah Master Poin Kegiatan</h4>
 
-<form method="POST" action="/admin/master-poin">
-    @csrf
+<form method="POST" action="{{ route('admin.master-poin.store') }}">
+@csrf
 
-    <div class="mb-3">
-        <label>Kelompok Kegiatan</label>
-        <input type="text" name="kelompok_kegiatan" class="form-control" placeholder="LKTI / KFKI">
-    </div>
+<div class="mb-3">
+    <label>Kategori</label>
+    <input type="text" name="kategori" class="form-control" placeholder="Prestasi / Kegiatan / Organisasi" required>
+</div>
 
-    <div class="mb-3">
-        <label>Tingkat</label>
-        <input type="text" name="tingkat" class="form-control" placeholder="Internasional / Nasional / dll">
-    </div>
+<div class="mb-3">
+    <label>Jenis Kegiatan</label>
+    <select name="jenis_kegiatan_id" class="form-control" required>
+    <option value="">-- Pilih Jenis Kegiatan --</option>
 
-    <div class="mb-3">
-        <label>Peran</label>
-        <input type="text" name="peran" class="form-control" placeholder="Juara / Peserta / Panitia">
-    </div>
+    @foreach($jenis as $item)
+        <option value="{{ $item->id }}">
+            {{ $item->nama }} - {{ $item->deskripsi }}
+        </option>
+    @endforeach
+    </select>
+</div>
 
-    <div class="mb-3">
-        <label>Kode</label>
-        <input type="text" name="kode" class="form-control">
-    </div>
+<div class="mb-3">
+    <label>Tingkat</label>
+        <select name="tingkat" class="form-control">
+            <option value="">-- Pilih Tingkat --</option>
+            <option value="internasional">Internasional</option>
+            <option value="nasional">Nasional</option>
+            <option value="regional">Regional</option>
+            <option value="institut">Institut</option>
+            <option value="fakultas">Fakultas</option>
+            <option value="jurusan">Jurusan</option>
+            <option value="lokal">Lokal</option>
+        </select>
+</div>
 
-    <div class="mb-3">
-        <label>Poin</label>
-        <input type="number" name="poin" class="form-control">
-    </div>
+<div class="mb-3">
+    <label>Peran</label>
+    <input type="text" name="peran" class="form-control" placeholder="Juara / Peserta / Panitia" required>
+</div>
 
-    <button class="btn btn-primary">Simpan</button>
+<div class="mb-3">
+    <label>Kode</label>
+    <input type="text" name="kode" class="form-control" required>
+</div>
+
+<div class="mb-3">
+    <label>Poin</label>
+    <input type="number" name="poin" class="form-control" required>
+</div>
+
+<button class="btn btn-primary">Simpan</button>
+
 </form>
 @endsection

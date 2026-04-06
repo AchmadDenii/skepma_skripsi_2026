@@ -12,31 +12,45 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
 
-        // Total poin hanya dari sertifikat APPROVED
-        $totalPoin = DB::table('sertifikat')
-        ->join(
-            'master_poin_sertifikat',
-            'sertifikat.master_poin_id',
-            '=',
-            'master_poin_sertifikat.id'
-        )
-        ->where('sertifikat.user_id', $user->id)
-        ->where('sertifikat.status', 'approved')
-        ->sum('master_poin_sertifikat.poin');
+        // total poin yang disetujui
+        $totalPoin = DB::table('bukti')
+            ->join('master_poin_sertifikat', 'bukti.master_poin_id', '=', 'master_poin_sertifikat.id')
+            ->where('bukti.user_id', $user->id)
+            ->where('bukti.status', 'approved')
+            ->sum('master_poin_sertifikat.poin');
 
-        // Sertifikat pending
-        $pending = DB::table('sertifikat')
-            ->where('user_id', $user->id)
-            ->where('status', 'pending')
-            ->count();
+        // target sistem
+        $targetKelulusan = 1500;
 
-        // Target poin (sesuai proposal, statis dulu)
-        $target = 1500;
+        // asumsi kuliah 8 semester
+        $targetPerSemester = $targetKelulusan / 8;
 
-        return view('mahasiswa.dashboard', compact(
-            'totalPoin',
-            'pending',
-            'target'
-        ));
+        // progress mahasiswa
+        $progress = ($totalPoin / $targetKelulusan) * 100;
+
+        // poin yang masih kurang
+        $poinKurang = max(0, $targetKelulusan - $totalPoin);
+
+        // bukti terbaru
+        $buktiTerbaru = DB::table('bukti')
+            ->join('master_poin_sertifikat', 'bukti.master_poin_id', '=', 'master_poin_sertifikat.id')
+            ->where('bukti.user_id', $user->id)
+            ->select(
+                'bukti.*',
+                'master_poin_sertifikat.poin'
+            )
+            ->orderBy('bukti.created_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        return view('mahasiswa.dashboard', [
+            'mahasiswa'        => $user,
+            'totalPoin'        => $totalPoin,
+            'targetKelulusan'  => $targetKelulusan,
+            'targetPerSemester'=> $targetPerSemester,
+            'poinKurang'       => $poinKurang,
+            'progress'         => $progress,
+            'buktiTerbaru'     => $buktiTerbaru,
+        ]);
     }
 }

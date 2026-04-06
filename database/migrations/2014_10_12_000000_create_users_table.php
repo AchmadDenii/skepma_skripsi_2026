@@ -8,13 +8,24 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
+
             $table->id();
-            $table->string('username')->unique(); // NPM / NIDN
+
+            $table->string('username')->unique();
             $table->string('name');
-            $table->string('email')->nullable()->unique();
-            $table->string('role'); // mahasiswa, dosen, kaprodi, admin
+            $table->string('email')->nullable();
+
             $table->string('password');
+
+            $table->enum('role',[
+                'mahasiswa',
+                'dosen_wali',
+                'kaprodi',
+                'admin'
+            ]);
+
             $table->timestamps();
+
         });
     }
 

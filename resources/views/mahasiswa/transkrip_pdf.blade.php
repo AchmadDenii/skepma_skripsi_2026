@@ -42,7 +42,7 @@
         </tr>
     </thead>
     <tbody>
-        @foreach ($sertifikat as $index => $item)
+        @foreach ($bukti as $index => $item)
         <tr>
             <td>{{ $index + 1 }}</td>
             <td>{{ $item->nama_kegiatan }}</td>

@@ -1,51 +1,52 @@
 @extends('mahasiswa.layout')
 
 @section('content')
-<h4>Upload Sertifikat Kegiatan Mahasiswa</h4>
+<h4>Upload Bukti Kegiatan</h4>
 
-<form action="{{ route('mahasiswa.sertifikat.store') }}" method="POST" enctype="multipart/form-data">
+<form action="{{ route('mahasiswa.bukti.store') }}" method="POST" enctype="multipart/form-data">
     @csrf
 
     <div class="mb-3">
-        <label class="form-label">Nama Kegiatan</label>
+        <label>Nama Kegiatan</label>
         <input type="text" name="nama_kegiatan" class="form-control" required>
     </div>
+
     <div class="mb-3">
-        <label class="form-label">Kategori Kegiatan</label>
-        <select id="kategori" name='kategori' class="form-select">
-            <option value="">Pilih Kategori</option>
+        <label>Kategori</label>
+        <select id="kategori" class="form-select">
+            <option value="">Pilih</option>
             <option value="akademik">Akademik</option>
             <option value="non-akademik">Non Akademik</option>
         </select>
     </div>
+
     <div class="mb-3">
-        <label class="form-label">Pilih Jenis Kegiatan</label>
-        <select id="jenis_kegiatan" class="form-select" disabled>
-            <option value="">Pilih Jenis Kegiatan</option>
-        </select>
+        <label>Jenis Kegiatan</label>
+        <select id="jenis" class="form-select" disabled></select>
     </div>
+
     <div class="mb-3">
-        <label class="form-label">Pilih Prestasi/Peran</label>
-        <select id="peran" class="form-select" disabled>
-        <option value="">-- Pilih Prestasi/Peran --</option>
-        </select>
+        <label>Peran</label>
+        <select id="peran" class="form-select" disabled></select>
     </div>
+
     <div class="mb-3">
-        <label class="form-label">Pilih Tingkatan Lomba/Kegiatan</label>
-        <select name="master_poin_id" id="tingkat" class="form-select" disabled>
-            <option value="">Pilih Tingkat</option>
-        </select>
+        <label>Tingkat</label>
+        <select name="master_poin_id" id="tingkat" class="form-select" required></select>
     </div>
+
     <div class="mb-3">
-        <label class="form-label">Tanggal Kegiatan</label>
+        <label>Tanggal</label>
         <input type="date" name="tanggal_kegiatan" class="form-control" required>
     </div>
+
     <div class="mb-3">
-        <label class="form-label">Upload Sertifikat</label>
-        <input type="file" name="file" class="form-control" accept=".pdf,.jpg,.png" required>
+        <label>File</label>
+        <input type="file" name="file" class="form-control" required>
     </div>
+
     <div class="mb-3">
-        <label class="form-label">Keterangan (Opsional)</label>
+        <label>Keterangan</label>
         <textarea name="keterangan" class="form-control"></textarea>
     </div>
 
@@ -55,59 +56,82 @@
 
 @section('scripts')
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    const kategori = document.getElementById('kategori');
-    const jenis = document.getElementById('jenis_kegiatan');
-    const peran = document.getElementById('peran');
-    const tingkat = document.getElementById('tingkat');
+const kategori = document.getElementById('kategori');
+const jenis = document.getElementById('jenis');
+const peran = document.getElementById('peran');
+const tingkat = document.getElementById('tingkat');
 
-    kategori.addEventListener('change', async () => {
-        reset(jenis); reset(peran); reset(tingkat);
-        if (!kategori.value) return;
+function reset(el){
+    el.innerHTML = '<option value="">Pilih</option>';
+    el.disabled = true;
+}
 
+kategori.addEventListener('change', async () => {
+    reset(jenis); reset(peran); reset(tingkat);
+
+    if (!kategori.value) return;
+
+    try {
         const res = await fetch(`/mahasiswa/master-poin/jenis/${kategori.value}`);
         const data = await res.json();
 
-        fill(jenis, data);
+        if (data.length === 0) return;
+
+        jenis.innerHTML = '<option value="">Pilih</option>';
+        data.forEach(item => {
+            jenis.innerHTML += `<option value="${item.id}">${item.nama}</option>`;
+        });
+
         jenis.disabled = false;
-    });
 
-    jenis.addEventListener('change', async () => {
-        reset(peran); reset(tingkat);
-        if (!jenis.value) return;
+    } catch (err) {
+        console.error(err);
+    }
+});
 
-        const res = await fetch(`/mahasiswa/master-poin/peran/${kategori.value}/${encodeURIComponent(jenis.value)}`);
+jenis.addEventListener('change', async () => {
+    reset(peran); reset(tingkat);
+
+    if (!jenis.value) return;
+
+    try {
+        const res = await fetch(`/mahasiswa/master-poin/peran/${jenis.value}`);
         const data = await res.json();
 
-        fill(peran, data);
+        if (data.length === 0) return;
+
+        peran.innerHTML = '<option value="">Pilih</option>';
+        data.forEach(val => {
+            peran.innerHTML += `<option value="${val}">${val}</option>`;
+        });
+
         peran.disabled = false;
-    });
 
-    peran.addEventListener('change', async () => {
-        reset(tingkat);
-        if (!peran.value) return;
+    } catch (err) {
+        console.error(err);
+    }
+});
 
-        const url = `/mahasiswa/master-poin/tingkat/${kategori.value}/${jenis.value}/${encodeURIComponent(peran.value)}`;
-        const res = await fetch(url);
+peran.addEventListener('change', async () => {
+    reset(tingkat);
+
+    if (!peran.value) return;
+
+    try {
+        const res = await fetch(`/mahasiswa/master-poin/tingkat/${jenis.value}/${encodeURIComponent(peran.value)}`);
         const data = await res.json();
 
-        tingkat.innerHTML = '<option value="">Pilih Tingkat</option>';
+        if (data.length === 0) return;
+
+        tingkat.innerHTML = '<option value="">Pilih</option>';
         data.forEach(item => {
             tingkat.innerHTML += `<option value="${item.id}">${item.tingkat}</option>`;
         });
-        tingkat.disabled = false;
-    });
 
-    function reset(el) {
-        el.innerHTML = '<option value="">---</option>';
-        el.disabled = true;
-    }
+        tingkat.removeAttribute('disabled');
 
-    function fill(el, data) {
-        el.innerHTML = '<option value="">Pilih</option>';
-        data.forEach(val => {
-            el.innerHTML += `<option value="${val}">${val}</option>`;
-        });
+    } catch (err) {
+        console.error(err);
     }
 });
 </script>

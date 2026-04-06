@@ -21,13 +21,13 @@
                     </a>
                 </li>
                 <li class="nav-item mb-2">
-                    <a href="/mahasiswa/sertifikat/upload" class="nav-link text-white">
-                        Unggah Sertifikat
+                    <a href="/mahasiswa/bukti/upload" class="nav-link text-white">
+                        Unggah bukti
                     </a>
                 </li>
                 <li class="nav-item mb-2">              
-                    <a href="/mahasiswa/sertifikat" class="nav-link text-white">
-                        Riwayat Sertifikat
+                    <a href="/mahasiswa/bukti" class="nav-link text-white">
+                        Riwayat bukti
                     </a>
                 </li>
                 <li class="nav-item mt-4">
