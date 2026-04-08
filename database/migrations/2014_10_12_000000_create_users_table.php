@@ -10,22 +10,18 @@ return new class extends Migration {
         Schema::create('users', function (Blueprint $table) {
 
             $table->id();
-
             $table->string('username')->unique();
             $table->string('name');
-            $table->string('email')->nullable();
-
+            $table->string('email')->unique();
             $table->string('password');
-
-            $table->enum('role',[
+            $table->enum('role', [
                 'mahasiswa',
                 'dosen_wali',
                 'kaprodi',
                 'admin'
             ]);
-
-            $table->timestamps();
-
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
         });
     }
 

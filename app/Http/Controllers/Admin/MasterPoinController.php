@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\MasterPoinbukti;
+use App\Models\MasterPoinSertifikat;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -12,11 +12,11 @@ class MasterPoinController extends Controller
     public function index()
     {
         $data = DB::table('master_poin_sertifikat as m')
-            ->join('jenis_kegiatan as j','m.jenis_kegiatan_id','=','j.id')
+            ->join('jenis_kegiatan as j', 'm.jenis_kegiatan_id', '=', 'j.id')
             ->select(
                 'm.id',
                 'j.nama as jenis_kegiatan',
-                'm.kategori',
+                'j.kategori as kategori',
                 'm.peran',
                 'm.tingkat',
                 'm.kode',
@@ -48,87 +48,75 @@ class MasterPoinController extends Controller
             'poin' => 'required|integer',
         ]);
 
-        $tingkat = $this->normalizeTingkat($request->tingkat);
+        $tingkat = $request->tingkat ?? null;
+
 
         DB::table('master_poin_sertifikat')->insert([
-            'kategori' => $request->kategori,
             'jenis_kegiatan_id' => $request->jenis_kegiatan_id,
             'peran' => $request->peran,
             'tingkat' => $tingkat,
             'kode' => $request->kode,
             'poin' => $request->poin,
+            'bukti' => null,
             'butuh_bukti' => 1,
             'aktif' => 1,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
-        MasterPoinbukti::create([
-            'kategori' => $request->kategori,
-            'jenis_kegiatan_id' => $request->jenis_kegiatan_id,
-            'peran' => $request->peran,
-            'tingkat' => $request->tingkat,
-            'kode' => $request->kode,
-            'poin' => $request->poin,
-            'aktif' => 1
-        ]);
-
         return redirect('/admin/master-poin')
-            ->with('success','Data master poin ditambahkan');
+            ->with('success', 'Data master poin ditambahkan');
     }
 
     public function edit($id)
     {
-        $data = MasterPoinbukti::findOrFail($id);
+        $data = MasterPoinSertifikat::findOrFail($id);
         $jenis = DB::table('jenis_kegiatan')->get();
 
-        return view('admin.master_poin.edit', compact('data','jenis'));
+        return view('admin.master_poin.edit', compact('data', 'jenis'));
     }
 
     public function update(Request $request, $id)
     {
         $request->validate([
-            'kategori' => 'required',
-            'jenis_kegiatan_id' => 'required',
-            'peran' => 'required',
-            'tingkat' => 'nullable',
-            'poin' => 'required|integer',
+            'jenis_kegiatan_id' => 'required|exists:jenis_kegiatan,id',
+            'peran' => 'required|string|max:100',
+            'tingkat' => 'nullable|in:internasional,nasional,regional,institut,fakultas,lokal,jurusan',
+            'kode' => 'required|string|max:50|unique:master_poin_sertifikat,kode,' . $id,
+            'poin' => 'required|integer|min:0',
+            'butuh_bukti' => 'nullable|boolean',
+            'aktif' => 'nullable|boolean',
         ]);
 
-        MasterPoinbukti::where('id',$id)->update([
-            'kategori' => $request->kategori,
+        $master = MasterPoinSertifikat::findOrFail($id);
+        $master->update([
             'jenis_kegiatan_id' => $request->jenis_kegiatan_id,
             'peran' => $request->peran,
             'tingkat' => $request->tingkat,
-            'poin' => $request->poin
+            'kode' => $request->kode,
+            'poin' => $request->poin,
+            'butuh_bukti' => $request->has('butuh_bukti') ? 1 : 0,
+            'aktif' => $request->has('aktif') ? 1 : 0,
         ]);
 
-        return redirect('/admin/master-poin')
-            ->with('success','Master poin berhasil diperbarui');
+        return redirect()->route('admin.master-poin.index')->with('success', 'Master poin berhasil diperbarui');
     }
 
     public function nonaktif($id)
     {
-        MasterPoinbukti::where('id',$id)->update([
-            'aktif'=>0
+        MasterPoinSertifikat::where('id', $id)->update([
+            'aktif' => 0
         ]);
 
-        return back()->with('success','Master poin berhasil dinonaktifkan');
+        return back()->with('success', 'Master poin berhasil dinonaktifkan');
     }
 
     public function aktif($id)
     {
-        MasterPoinbukti::where('id',$id)->update([
-            'aktif'=>1
+        MasterPoinSertifikat::where('id', $id)->update([
+            'aktif' => 1
         ]);
 
-        return back()->with('success','Master poin berhasil diaktifkan');
-    }
-
-    private function normalizeTingkat($value)
-    {
-        if (!$value || $value == '-') return null;
-
-        return strtolower(trim($value));
+        return back()->with('success', 'Master poin berhasil diaktifkan');
     }
 }

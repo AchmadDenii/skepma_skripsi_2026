@@ -10,127 +10,87 @@ class RekapController extends Controller
 {
     public function index(Request $request)
     {
-        // ====== DATA DROPDOWN ======
+        // Data dropdown
         $tahunList = DB::table('bukti')
-            ->selectRaw('YEAR(tanggal_kegiatan) as tahun')
+            ->selectRaw('YEAR(created_at) as tahun')
             ->distinct()
             ->orderByDesc('tahun')
             ->pluck('tahun');
 
-        $jenisList = DB::table('master_poin_sertifikat')
-            ->orderBy('jenis_kegiatan')
-            ->pluck('jenis_kegiatan');
+        $semesterList = DB::table('semester')->orderBy('id')->get();
 
-        // ====== QUERY UTAMA ======
+        $jenisList = DB::table('jenis_kegiatan')
+            ->orderBy('nama')
+            ->pluck('nama');
+
+        // Query utama
         $query = DB::table('bukti')
             ->join('users as mhs', 'mhs.id', '=', 'bukti.user_id')
-            ->leftJoin('users as dosen', 'dosen.id', '=', 'bukti.dosen_id')
-            ->join(
-                'master_poin_sertifikat',
-                'master_poin_sertifikat.id',
-                '=',
-                'bukti.master_poin_id'
-            )
+            ->leftJoin('mahasiswa', 'mahasiswa.user_id', '=', 'mhs.id')
+            ->leftJoin('users as dosen', 'dosen.id', '=', 'mahasiswa.dosen_wali_id')
+            ->join('master_poin_sertifikat as mp', 'mp.id', '=', 'bukti.master_poin_id')
+            ->join('jenis_kegiatan as jk', 'jk.id', '=', 'mp.jenis_kegiatan_id')
             ->select(
                 'bukti.id',
                 'mhs.name as nama_mahasiswa',
                 'mhs.username',
                 'dosen.name as nama_dosen',
-                'master_poin_sertifikat.jenis_kegiatan',
-                'master_poin_sertifikat.tingkat as tingkatan',
-                'bukti.tanggal_kegiatan',
+                'jk.nama as jenis_kegiatan',
+                'mp.tingkat as tingkatan',
+                'bukti.created_at as tanggal_kegiatan',
                 'bukti.file',
                 'bukti.status'
             );
 
-        // ====== FILTER ======
-        if ($request->tahun) {
-            $query->whereYear('bukti.tanggal_kegiatan', $request->tahun);
+        // Filter tahun (berdasarkan created_at)
+        if ($request->filled('tahun')) {
+            $query->whereYear('bukti.created_at', $request->tahun);
         }
 
-        if ($request->semester) {
-            if ($request->semester === 'ganjil') {
-                $query->whereMonth('bukti.tanggal_kegiatan', '>=', 8)
-                      ->orWhereMonth('bukti.tanggal_kegiatan', '<=', 1);
-            } elseif ($request->semester === 'genap') {
-                $query->whereBetween(
-                    DB::raw('MONTH(bukti.tanggal_kegiatan)'), [2, 7]
-                );
-            }
+        // Filter semester (berdasarkan semester_id)
+        if ($request->filled('semester_id')) {
+            $query->where('bukti.semester_id', $request->semester_id);
         }
 
-        if ($request->jenis) {
-            $query->where(
-                'master_poin_sertifikat.jenis_kegiatan',
-                $request->jenis
-            );
+        // Filter jenis kegiatan
+        if ($request->filled('jenis')) {
+            $query->where('jk.nama', $request->jenis);
         }
 
-        $data = $query
-            ->orderByDesc('bukti.tanggal_kegiatan')
-            ->get();
+        $data = $query->orderByDesc('bukti.created_at')->get();
 
-        return view('kaprodi.rekap', compact(
-            'data',
-            'tahunList',
-            'jenisList'
-        ));
+        return view('kaprodi.rekap', compact('data', 'tahunList', 'semesterList', 'jenisList'));
     }
-    
+
     public function daftarMahasiswa()
     {
         $targetPoin = 1500;
 
         $data = DB::table('users as mhs')
             ->where('mhs.role', 'mahasiswa')
-
-            ->leftJoin('dosen_mahasiswa', 'dosen_mahasiswa.mahasiswa_id', '=', 'mhs.id')
-            ->leftJoin('users as dosen', 'dosen.id', '=', 'dosen_mahasiswa.dosen_id')
-
+            ->leftJoin('mahasiswa', 'mahasiswa.user_id', '=', 'mhs.id')
+            ->leftJoin('users as dosen', 'dosen.id', '=', 'mahasiswa.dosen_wali_id')
             ->leftJoin('bukti', function ($join) {
                 $join->on('bukti.user_id', '=', 'mhs.id')
                     ->where('bukti.status', 'approved');
             })
-
-            ->leftJoin(
-                'master_poin_sertifikat',
-                'master_poin_sertifikat.id',
-                '=',
-                'bukti.master_poin_id'
-            )
-
+            ->leftJoin('master_poin_sertifikat as mp', 'mp.id', '=', 'bukti.master_poin_id')
             ->select(
                 'mhs.id',
                 'mhs.name',
                 'mhs.username',
                 'dosen.name as nama_dosen',
-
-                DB::raw('COALESCE(SUM(master_poin_sertifikat.poin),0) as total_poin')
+                DB::raw('COALESCE(SUM(mp.poin), 0) as total_poin')
             )
-
-            ->groupBy(
-                'mhs.id',
-                'mhs.name',
-                'mhs.username',
-                'dosen.name'
-            )
-
+            ->groupBy('mhs.id', 'mhs.name', 'mhs.username', 'dosen.name')
             ->orderBy('mhs.name')
             ->get()
             ->map(function ($mhs) use ($targetPoin) {
-
-                $mhs->progress = $targetPoin > 0
-                    ? round(($mhs->total_poin / $targetPoin) * 100)
-                    : 0;
-
+                $mhs->progress = $targetPoin > 0 ? round(($mhs->total_poin / $targetPoin) * 100, 1) : 0;
                 $mhs->poin_kurang = max(0, $targetPoin - $mhs->total_poin);
-
                 return $mhs;
             });
 
-        return view('kaprodi.mahasiswa.index', compact(
-            'data',
-            'targetPoin'
-        ));
+        return view('kaprodi.mahasiswa.index', compact('data', 'targetPoin'));
     }
 }

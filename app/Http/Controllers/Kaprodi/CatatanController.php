@@ -5,23 +5,25 @@ namespace App\Http\Controllers\Kaprodi;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\User;
 
 class CatatanController extends Controller
 {
     public function index()
     {
-        $catatan = DB::table('catatan_kaprodi')
-            ->join('users as dosen', 'dosen.id', '=', 'catatan_kaprodi.dosen_id')
-            ->join('users as kaprodi', 'kaprodi.id', '=', 'catatan_kaprodi.kaprodi_id')
+        $catatan = DB::table('catatan_kaprodi as c')
+            ->join('dosen_wali as dw', 'dw.id', '=', 'c.dosen_id')
+            ->join('users as dosen', 'dosen.id', '=', 'dw.user_id')
+            ->join('users as kaprodi', 'kaprodi.id', '=', 'c.kaprodi_id')
             ->select(
-                'catatan_kaprodi.id',
+                'c.id',
                 'dosen.name as nama_dosen',
                 'kaprodi.name as nama_kaprodi',
-                'catatan_kaprodi.catatan',
-                'catatan_kaprodi.created_at'
+                'c.catatan',
+                'c.created_at'
             )
-            ->orderByDesc('catatan_kaprodi.created_at')
-            ->get();
+            ->orderByDesc('c.created_at')
+            ->paginate(15);
 
         return view('kaprodi.catatan.index', compact('catatan'));
     }
@@ -31,6 +33,7 @@ class CatatanController extends Controller
         $dosen = DB::table('users')
             ->where('role', 'dosen_wali')
             ->orderBy('name')
+            ->select('id', 'name')
             ->get();
 
         return view('kaprodi.catatan.create', compact('dosen'));
@@ -40,18 +43,22 @@ class CatatanController extends Controller
     {
         $request->validate([
             'dosen_id' => 'required|exists:users,id',
-            'catatan'  => 'required|string'
+            'catatan'  => 'required|string|max:1000',
         ]);
+
+        $dosenWali = DB::table('dosen_wali')->where('user_id', $request->dosen_id)->first();
+        if (!$dosenWali) {
+            return back()->withErrors(['dosen_id' => 'Dosen wali tidak valid.'])->withInput();
+        }
 
         DB::table('catatan_kaprodi')->insert([
             'kaprodi_id' => auth()->id(),
-            'dosen_id'   => $request->dosen_id,
+            'dosen_id'   => $dosenWali->id,
             'catatan'    => $request->catatan,
-            'created_at' => now()
+            'created_at' => now(),
         ]);
 
-        return redirect()
-            ->route('kaprodi.catatan.index')
+        return redirect()->route('kaprodi.catatan.index')
             ->with('success', 'Catatan berhasil dikirim ke dosen wali');
     }
 }
