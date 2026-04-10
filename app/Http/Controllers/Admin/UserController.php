@@ -7,6 +7,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use App\Models\Mahasiswa;
+use App\Models\DosenWali;
 
 class UserController extends Controller
 {
@@ -14,34 +16,35 @@ class UserController extends Controller
     {
         $users = User::orderBy('role')->orderBy('name')->get();
 
-        $dosenWali = User::where('role', 'dosen_wali')
+        $dosenWali = User::whereIn('role', ['dosen_wali', 'kaprodi'])
             ->orderBy('name')
             ->get();
 
-        $relasiDosen = DB::table('dosen_mahasiswa')
-            ->pluck('dosen_id', 'mahasiswa_id');
+        $relasiDosen = DB::table('mahasiswa')
+            ->whereNotNull('dosen_wali_id')
+            ->pluck('dosen_wali_id', 'user_id');
 
-        return view('admin.users.index', compact(
-            'users',
-            'dosenWali',
-            'relasiDosen'
-        ));
+        $mahasiswaMap = Mahasiswa::pluck('id', 'user_id');
+        $dosenWaliMap = DosenWali::pluck('id', 'user_id');
+        return view('admin.users.index', compact('users', 'dosenWali', 'relasiDosen', 'mahasiswaMap', 'dosenWaliMap'));
     }
-    public function create(){
+    public function create()
+    {
         return view('admin.users.create');
     }
-    public function store(Request $request){
+    public function store(Request $request)
+    {
         $request->validate([
             'name' => 'required|string|max:255',
             'username' => 'required|string|unique:users',
-            'role' => 'required|in:mahasiswa,dosen_wali,kaprodi,admin',
             'password' => 'required|min:6',
         ]);
 
         User::create([
             'name' => $request->name,
             'username' => $request->username,
-            'role' => $request->role,
+            'email' => null,
+            'role' => 'Admin',
             'password' => Hash::make($request->password),
         ]);
 
@@ -57,13 +60,11 @@ class UserController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'role' => 'required|in:mahasiswa,dosen_wali,kaprodi,admin',
             'password' => 'nullable|min:6',
         ]);
 
         $data = [
             'name' => $request->name,
-            'role' => $request->role,
         ];
 
         if ($request->password) {

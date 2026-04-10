@@ -11,11 +11,12 @@ class buktiController extends Controller
     // DASHBOARD
     public function dashboard()
     {
-        $dosenId = auth()->id();
+        $dosenId = auth()->id(); // ID user dosen wali
 
-        $mahasiswaIds = DB::table('dosen_mahasiswa')
-            ->where('dosen_id', $dosenId)
-            ->pluck('mahasiswa_id');
+        // Ambil semua user_id mahasiswa yang dibimbing oleh dosen wali ini
+        $mahasiswaIds = DB::table('mahasiswa')
+            ->where('dosen_wali_id', $dosenId)
+            ->pluck('user_id'); // karena bukti.user_id mengacu ke users.id mahasiswa
 
         $totalMahasiswa = $mahasiswaIds->count();
 
@@ -60,9 +61,10 @@ class buktiController extends Controller
     // LIST
     public function index(Request $request)
     {
-        $mahasiswaIds = DB::table('dosen_mahasiswa')
-            ->where('dosen_id', auth()->id())
-            ->pluck('mahasiswa_id');
+        // Ambil semua user_id mahasiswa yang dibimbing oleh dosen wali yang sedang login
+        $mahasiswaIds = DB::table('mahasiswa')
+            ->where('dosen_wali_id', auth()->id())
+            ->pluck('user_id'); // karena bukti.user_id adalah user_id mahasiswa
 
         if ($mahasiswaIds->isEmpty()) {
             $data = collect();
@@ -78,16 +80,19 @@ class buktiController extends Controller
                 'users.username'
             );
 
+        // Filter status (default pending jika tidak ada filter)
         if ($request->filled('status')) {
             $query->where('bukti.status', $request->status);
         } else {
             $query->where('bukti.status', 'pending');
         }
 
+        // Filter keyword (nama mahasiswa)
         if ($request->filled('keyword')) {
             $query->where('users.name', 'like', '%' . $request->keyword . '%');
         }
 
+        // Filter rentang tanggal (created_at)
         if ($request->filled('tanggal_dari') && $request->filled('tanggal_sampai')) {
             $query->whereBetween('bukti.created_at', [
                 $request->tanggal_dari,
@@ -102,6 +107,33 @@ class buktiController extends Controller
         return view('dosen.bukti.index', compact('data'));
     }
 
+    public function show($id)
+    {
+        $bukti = DB::table('bukti')
+            ->join('users', 'users.id', '=', 'bukti.user_id')
+            ->leftJoin('master_poin_sertifikat', 'master_poin_sertifikat.id', '=', 'bukti.master_poin_id')
+            ->where('bukti.id', $id)
+            ->select(
+                'bukti.*',
+                'users.name as nama_mahasiswa',
+                'users.username',
+                'master_poin_sertifikat.poin'
+            )
+            ->first();
+
+        if (!$bukti) abort(404, 'Data tidak ditemukan');
+
+        // Cek apakah mahasiswa ini bimbingan dosen yang login
+        $isBimbingan = DB::table('mahasiswa')
+            ->where('user_id', $bukti->user_id)
+            ->where('dosen_wali_id', auth()->id())
+            ->exists();
+
+        if (!$isBimbingan) abort(403, 'Bukan mahasiswa bimbingan Anda');
+
+        return view('dosen.bukti.show', compact('bukti'));
+    }
+
     // APPROVE
     public function approve($id)
     {
@@ -114,15 +146,21 @@ class buktiController extends Controller
             abort(403, 'Bukan mahasiswa bimbingan Anda');
         }
 
+        // Cari id dosen_wali berdasarkan user_id yang login
+        $dosenWali = DB::table('dosen_wali')->where('user_id', auth()->id())->first();
+        if (!$dosenWali) {
+            return back()->with('error', 'Data dosen wali tidak valid.');
+        }
+
         DB::table('bukti')
             ->where('id', $id)
             ->update([
                 'status'     => 'approved',
-                'dosen_id'   => auth()->id(),
+                'dosen_id'   => $dosenWali->id, // ✅ gunakan id dari tabel dosen_wali
                 'updated_at' => now()
             ]);
 
-        return back()->with('success', 'Disetujui');
+        return back()->with('success', 'Bukti berhasil disetujui');
     }
 
     // REJECT
@@ -141,41 +179,41 @@ class buktiController extends Controller
             abort(403, 'Bukan mahasiswa bimbingan Anda');
         }
 
+        $dosenWali = DB::table('dosen_wali')->where('user_id', auth()->id())->first();
+        if (!$dosenWali) {
+            return back()->with('error', 'Data dosen wali tidak valid.');
+        }
+
         DB::table('bukti')
             ->where('id', $id)
             ->update([
                 'status'        => 'rejected',
+                'dosen_id'      => $dosenWali->id,
                 'catatan_dosen' => $request->catatan_dosen,
-                'dosen_id'      => auth()->id(),
                 'updated_at'    => now()
             ]);
 
-        return back()->with('success', 'Ditolak');
+        return back()->with('success', 'Bukti ditolak');
     }
 
     public function mahasiswaBimbingan()
     {
-        $dosenId = auth()->id();
+        $dosenId = auth()->id(); // ID user dosen wali
 
-        $mahasiswa = DB::table('dosen_mahasiswa')
-            ->join('users', 'users.id', '=', 'dosen_mahasiswa.mahasiswa_id')
+        $mahasiswa = DB::table('mahasiswa')
+            ->join('users', 'users.id', '=', 'mahasiswa.user_id')
             ->leftJoin('bukti', function ($join) {
                 $join->on('bukti.user_id', '=', 'users.id')
                     ->where('bukti.status', 'approved');
             })
-            ->leftJoin(
-                'master_poin_sertifikat',
-                'master_poin_sertifikat.id',
-                '=',
-                'bukti.master_poin_id'
-            )
-            ->where('dosen_mahasiswa.dosen_id', $dosenId)
+            ->leftJoin('master_poin_sertifikat', 'master_poin_sertifikat.id', '=', 'bukti.master_poin_id')
+            ->where('mahasiswa.dosen_wali_id', $dosenId)
             ->groupBy('users.id', 'users.name', 'users.username')
             ->select(
                 'users.id',
                 'users.name',
                 'users.username',
-                DB::raw('COALESCE(SUM(master_poin_sertifikat.poin),0) as total_poin')
+                DB::raw('COALESCE(SUM(master_poin_sertifikat.poin), 0) as total_poin')
             )
             ->orderBy('users.name')
             ->get();
@@ -187,33 +225,36 @@ class buktiController extends Controller
     {
         $dosenId = auth()->id();
 
-        $isBimbingan = DB::table('dosen_mahasiswa')
-            ->where('dosen_id', $dosenId)
-            ->where('mahasiswa_id', $mahasiswaId)
+        // Cek apakah mahasiswa dengan user_id = $mahasiswaId berada dalam bimbingan dosen ini
+        $isBimbingan = DB::table('mahasiswa')
+            ->where('user_id', $mahasiswaId)
+            ->where('dosen_wali_id', $dosenId)
             ->exists();
 
-        if (!$isBimbingan) abort(403);
+        if (!$isBimbingan) {
+            abort(403, 'Anda tidak memiliki akses ke data mahasiswa ini.');
+        }
 
+        // Ambil data user mahasiswa
         $mahasiswa = DB::table('users')
             ->where('id', $mahasiswaId)
             ->where('role', 'mahasiswa')
             ->first();
 
-        if (!$mahasiswa) abort(404);
+        if (!$mahasiswa) {
+            abort(404, 'Mahasiswa tidak ditemukan.');
+        }
 
+        // Ambil data bukti mahasiswa
         $bukti = DB::table('bukti')
-            ->leftJoin(
-                'master_poin_sertifikat',
-                'master_poin_sertifikat.id',
-                '=',
-                'bukti.master_poin_id'
-            )
+            ->leftJoin('master_poin_sertifikat', 'master_poin_sertifikat.id', '=', 'bukti.master_poin_id')
+            ->leftJoin('jenis_kegiatan', 'jenis_kegiatan.id', '=', 'master_poin_sertifikat.jenis_kegiatan_id')
             ->where('bukti.user_id', $mahasiswaId)
             ->select(
                 'bukti.id',
-                'bukti.nama_kegiatan',
-                'master_poin_sertifikat.jenis_kegiatan',
-                'bukti.tanggal_kegiatan',
+                DB::raw('COALESCE(bukti.keterangan, "-") as nama_kegiatan'),
+                'jenis_kegiatan.nama as jenis_kegiatan',
+                'bukti.created_at as tanggal_kegiatan',
                 'bukti.file',
                 'bukti.status',
                 'bukti.created_at',
@@ -222,23 +263,27 @@ class buktiController extends Controller
             ->orderBy('bukti.created_at', 'desc')
             ->get();
 
-        return view('dosen.mahasiswa.detail', compact(
-            'mahasiswa',
-            'bukti'
-        ));
+        return view('dosen.mahasiswa.detail', compact('mahasiswa', 'bukti'));
     }
 
-    private function isMahasiswaBimbingan($mahasiswaId)
+    private function isMahasiswaBimbingan($userId)
     {
-        return DB::table('dosen_mahasiswa')
-            ->where('dosen_id', auth()->id())
-            ->where('mahasiswa_id', $mahasiswaId)
+        return DB::table('mahasiswa')
+            ->where('user_id', $userId)
+            ->where('dosen_wali_id', auth()->id())
             ->exists();
     }
 
     public function catatanKaprodi()
     {
-        $dosenId = auth()->id();
+        $dosenWali = DB::table('dosen_wali')->where('user_id', auth()->id())->first();
+
+        if (!$dosenWali) {
+            $catatan = collect();
+            return view('dosen.catatan.index', compact('catatan'));
+        }
+
+        $dosenId = $dosenWali->id;
 
         $catatan = DB::table('catatan_kaprodi')
             ->join('users as kaprodi', 'kaprodi.id', '=', 'catatan_kaprodi.kaprodi_id')
@@ -248,7 +293,7 @@ class buktiController extends Controller
                 'catatan_kaprodi.created_at',
                 'kaprodi.name as nama_kaprodi'
             )
-            ->orderBy('catatan_kaprodi.created_at', 'desc')
+            ->orderByDesc('catatan_kaprodi.created_at')
             ->get();
 
         return view('dosen.catatan.index', compact('catatan'));

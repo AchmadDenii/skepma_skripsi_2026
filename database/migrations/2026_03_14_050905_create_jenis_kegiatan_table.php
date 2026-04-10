@@ -12,14 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('jenis_kegiatan', function (Blueprint $table) {
-        $table->id();
-        $table->string('nama',150);
-        $table->enum('kategori',[
-            'akademik',
-            'non-akademik'
-        ]);
-        $table->timestamps();
-    });
+            $table->id();
+            $table->string('nama', 150);
+            $table->enum('kategori', [
+                'akademik',
+                'non-akademik'
+            ]);
+            $table->text('deskripsi');
+            $table->timestamps();
+        });
     }
 
     /**

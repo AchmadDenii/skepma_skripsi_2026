@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Mahasiswa;
 
 class AuthController extends Controller
 {
-    public function showLogin(){
+    public function showLogin()
+    {
         return view('auth.login');
     }
 
@@ -18,25 +20,33 @@ class AuthController extends Controller
     }
 
 
-    public function login(Request $request){
+    public function login(Request $request)
+    {
         $request->validate([
             'login' => 'required',
             'password' => 'required|min:8',
         ]);
 
-        $loginType = filter_var($request->login, FILTER_VALIDATE_EMAIL)
-        ? 'email' : 'username';
-        
-        $credentials = [
-            $loginType => $request->login,
-            'password' => $request->password,
-        ];
+        $login = $request->login;
+        $password = $request->password;
+
+        // Cek apakah login adalah NPM (cari di tabel mahasiswa)
+        $userFromNpm = Mahasiswa::where('npm', $login)->first();
+
+        if ($userFromNpm) {
+            // Login menggunakan user_id yang ditemukan
+            $credentials = ['id' => $userFromNpm->user_id, 'password' => $password];
+        } else {
+            // Cek apakah login berupa email atau username
+            $loginType = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+            $credentials = [$loginType => $login, 'password' => $password];
+        }
 
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
             $user = Auth::user();
-            //LOGIKA LOGIN MULTI ROLE
-            switch ($user->role){
+            // redirect sesuai role
+            switch ($user->role) {
                 case 'mahasiswa':
                     return redirect('/mahasiswa/dashboard');
                 case 'dosen_wali':
@@ -49,14 +59,15 @@ class AuthController extends Controller
                     Auth::logout();
                     return redirect('/login');
             }
-        } 
+        }
 
         return back()->withErrors([
-            'login'=>'Username/Email atau Password Salah',
+            'login' => 'NPM/Username/Email atau Password Salah',
         ]);
     }
 
-    public function logout(Request $request){
+    public function logout(Request $request)
+    {
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
