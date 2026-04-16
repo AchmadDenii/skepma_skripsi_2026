@@ -66,12 +66,6 @@
                                 <td>{{ $row->name }}</td>
                                 <td>{{ $row->username }}</td>
                                 <td>{{ \Carbon\Carbon::parse($row->created_at)->format('d-m-Y') }}</td>
-                                <td>
-                                    <a href="{{ route('dosen.bukti.show', $row->id) }}"
-                                        class="btn btn-sm btn-outline-success">
-                                        Verifikasi
-                                    </a>
-                                </td>
                             </tr>
                         @empty
                             <tr>

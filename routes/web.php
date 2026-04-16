@@ -80,6 +80,7 @@ Route::middleware(['auth', 'role:dosen_wali'])->prefix('dosen')->group(function 
         '/catatan',
         [DosenBuktiController::class, 'catatanKaprodi']
     )->name('dosen.catatan.index');
+    Route::get('/mahasiswa/{id}/export-pdf', [MahasiswaController::class, 'exportPdf'])->name('dosen.mahasiswa.export-pdf');
 });
 
 // ================= KAPRODI =================
