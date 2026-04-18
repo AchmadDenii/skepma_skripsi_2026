@@ -1,7 +1,9 @@
 @extends('dosen.layout')
 
 @section('content')
-    <h4 class="mb-3">Detail Mahasiswa</h4>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">Detail Mahasiswa</h4>
+    </div>
 
     {{-- KOTAK IDENTITAS --}}
     <div class="card mb-4">
@@ -11,18 +13,21 @@
         </div>
     </div>
 
-    {{-- RIWAYAT bukti --}}
+    {{-- RIWAYAT BUKTI --}}
     <div class="card">
-        <div class="card-header bg-white">
-            <strong>Riwayat bukti</strong>
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <strong>Riwayat Bukti</strong>
+            <a href="{{ route('dosen.mahasiswa.export-pdf', $mahasiswa->id) }}" class="btn btn-sm btn-danger">
+                <i class="fas fa-file-pdf"></i> Export PDF
+            </a>
         </div>
 
         <div class="card-body p-0">
             <table class="table table-hover mb-0">
                 <thead class="table-light">
-                    <tr>
+                    <tr class="text-center">
                         <th>No</th>
-                        <th>Nama bukti</th>
+                        <th>Nama Bukti</th>
                         <th>Jenis</th>
                         <th>Tanggal</th>
                         <th>Poin</th>
@@ -33,25 +38,23 @@
                 <tbody>
                     @forelse($bukti as $index => $row)
                         <tr>
-                            <td>{{ $index + 1 }}</td>
-                            <td>{{ $row->nama_kegiatan }}</td>
-                            <td>{{ $row->jenis_kegiatan }}</td>
-                            <td>{{ $row->tanggal_kegiatan }}</td>
-                            <td>
-                                <span class="badge bg-success">
-                                    {{ $row->poin }}
-                                </span>
+                            <td class="text-center">{{ $index + 1 }}</td>
+                            <td class="text-center">{{ $row->nama_kegiatan }}</td>
+                            <td class="text-center">{{ $row->jenis_kegiatan }}</td>
+                            <td class="text-center">{{ $row->tanggal_kegiatan }}</td>
+                            <td class="text-center">
+                                <span class="badge bg-success">{{ $row->poin }}</span>
                             </td>
-                            <td>
+                            <td class="text-center">
                                 <span
                                     class="badge 
-                            @if ($row->status == 'approved') bg-success
-                            @elseif($row->status == 'rejected') bg-danger
-                            @else bg-warning @endif">
+                                    @if ($row->status == 'approved') bg-success
+                                    @elseif($row->status == 'rejected') bg-danger
+                                    @else bg-warning @endif">
                                     {{ ucfirst($row->status) }}
                                 </span>
                             </td>
-                            <td>
+                            <td class="text-center">
                                 <a href="{{ asset('storage/' . $row->file) }}" target="_blank"
                                     class="btn btn-sm btn-outline-primary">
                                     Lihat
@@ -60,9 +63,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-3">
-                                Belum ada bukti
-                            </td>
+                            <td colspan="7" class="text-center text-muted py-3">Belum ada bukti</td>
                         </tr>
                     @endforelse
                 </tbody>

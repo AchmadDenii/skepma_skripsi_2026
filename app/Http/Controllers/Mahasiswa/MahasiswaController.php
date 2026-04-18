@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Models\Bukti;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class MahasiswaController extends Controller
 {
@@ -144,6 +145,29 @@ class MahasiswaController extends Controller
 
         return redirect()->route('admin.users.index')
             ->with('success', 'Mahasiswa berhasil diperbarui');
+    }
+    public function exportPdf($id)
+    {
+        $mahasiswa = User::with(['mahasiswa.dosenWali'])->findOrFail($id);
+
+        $bukti = Bukti::with(['masterPoin.jenisKegiatan'])
+            ->where('user_id', $id)
+            ->where('status', 'approved')
+            ->get();
+
+        $totalPoin = $bukti->sum(fn($item) => $item->masterPoin->poin ?? 0);
+
+        $dosenWali = $mahasiswa->mahasiswa->dosenWali ?? null;
+
+        $data = [
+            'mahasiswa'  => $mahasiswa,
+            'bukti'      => $bukti,
+            'totalPoin'  => $totalPoin,
+            'dosenWali'  => $dosenWali,
+        ];
+
+        $pdf = Pdf::loadView('dosen.pdf.mahasiswa_detail', $data);
+        return $pdf->download('Rekap_SKEPMA_' . ($mahasiswa->mahasiswa->npm ?? $mahasiswa->id) . '.pdf');
     }
 
     public function destroy($id)

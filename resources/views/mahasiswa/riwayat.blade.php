@@ -37,7 +37,6 @@
                                 <th>File</th>
                                 <th>Status</th>
                                 <th>Tanggal Upload</th>
-                                <th>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>

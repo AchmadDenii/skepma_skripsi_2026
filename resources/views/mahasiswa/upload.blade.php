@@ -48,6 +48,7 @@
                 <option value="fakultas">Fakultas</option>
                 <option value="jurusan">Jurusan</option>
                 <option value="lokal">Lokal</option>
+                <option value="-">-</option>
             </select>
         </div>
 
